@@ -47,3 +47,19 @@ poetry run python flows/prueba_flow.py
 ```bash
 poetry run pytest -q
 ```
+## Levantar servicios
+
+**En un computador local:**
+```bash
+cd services
+docker compose up -d
+```
+
+**En GitHub Codespaces** (usa el archivo de ajustes para que las UIs funcionen por el puerto reenviado):
+```bash
+cd services
+docker compose -f docker-compose.yml -f docker-compose.codespaces.yml up -d
+```
+
+- MLflow: puerto 5000 (en Codespaces, ábrelo desde la pestaña **Ports**)
+- Prefect: puerto 4200
