@@ -2,7 +2,7 @@
 
 Proyecto del curso de MLOps.  
 
-**Integrantes:** [Nombre 1], [Nombre 2], [Nombre 3]
+**Integrantes:** [Juan Jose Rodriguez], [Jorge Emmanuel Marin Linares], [Jose Fernando Figueroa]
 
 ## Requisitos
 - Python 3.12 a 3.14
@@ -61,5 +61,5 @@ cd services
 docker compose -f docker-compose.yml -f docker-compose.codespaces.yml up -d
 ```
 
-- MLflow: puerto 5000 (en Codespaces, ábrelo desde la pestaña **Ports**)
+- MLflow: puerto 5000
 - Prefect: puerto 4200
