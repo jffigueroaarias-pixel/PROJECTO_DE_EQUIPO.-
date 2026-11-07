@@ -1,0 +1,4 @@
+model_name: "modelo_clientes_kmeans"
+auc_minimo: 0.70
+kmeans_clusters: 4
+classifier_max_iter: 1000
