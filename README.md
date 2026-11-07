@@ -63,3 +63,6 @@ docker compose -f docker-compose.yml -f docker-compose.codespaces.yml up -d
 
 - MLflow: puerto 5000
 - Prefect: puerto 4200
+
+$env:PREFECT_API_URL = "http://localhost:4200/api"
+$env:MLFLOW_TRACKING_URI = "http://localhost:5000"
