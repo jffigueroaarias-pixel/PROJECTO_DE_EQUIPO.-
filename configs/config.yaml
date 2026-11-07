@@ -1,0 +1,28 @@
+modelo:
+  semilla: 42
+  candidatos:
+    - nombre_run: "logistic-regression"
+      tipo: "logistic_regression"
+      parametros:
+        max_iter: 1000
+    - nombre_run: "gradient-boosting"
+      tipo: "gradient_boosting"
+      parametros:
+        n_estimators: 100
+        random_state: 42
+
+features:
+  - nombre: "ALL"
+    columnas: "ALL"
+  - nombre: "NUMERIC"
+    columnas: "NUMERIC"
+
+metricas:
+  umbral: 0.5
+
+registro:
+  nombre_modelo: "churn-modelo"
+  umbral_auc: 0.70
+
+inferencia:
+  tamano_lote: 50

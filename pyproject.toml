@@ -3,7 +3,7 @@ name = "mi-proyecto-mlops"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "jffigueroaarias-pixel",email = "jffigueroaarias@gmail.com"}
+    {name = "Jose Figueroa - Emmanuel Marin - Juan Rodriguez"}
 ]
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
