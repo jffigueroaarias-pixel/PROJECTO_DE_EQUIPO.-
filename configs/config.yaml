@@ -21,7 +21,7 @@ metricas:
   umbral: 0.5
 
 registro:
-  nombre_modelo: "churn-modelo"
+  nombre_modelo: "modelo_clientes_kmeans"
   umbral_auc: 0.70
 
 inferencia:
