@@ -1,28 +1,87 @@
-modelo:
-  semilla: 42
-  candidatos:
-    - nombre_run: "logistic-regression"
-      tipo: "logistic_regression"
-      parametros:
-        max_iter: 1000
-    - nombre_run: "gradient-boosting"
-      tipo: "gradient_boosting"
-      parametros:
-        n_estimators: 100
-        random_state: 42
+# Configuración del proyecto de churn (actividades 2 y 3).
+# Todo valor que pueda cambiar entre experimentos vive aquí, no en el código.
+# Las rutas son relativas a la raíz del repositorio.
 
-features:
-  - nombre: "ALL"
-    columnas: "ALL"
-  - nombre: "NUMERIC"
-    columnas: "NUMERIC"
+datos:
+  ruta: data/Customer-Churn-Records.csv
+  objetivo: Exited
+
+division:
+  test_size: 0.2
+  random_state: 42
+
+# Modelos que se entrenan en cada ejecución. Gana el de mayor AUC.
+# tipo: logistic_regression | random_forest | gradient_boosting
+candidatos:
+  - nombre_run: regresion-logistica
+    tipo: logistic_regression
+    parametros:
+      C: 1.0
+      max_iter: 1000
+  - nombre_run: random-forest
+    tipo: random_forest
+    parametros:
+      n_estimators: 300
+      max_depth: 8
+      min_samples_leaf: 5
+      random_state: 42
+  - nombre_run: gradient-boosting
+    tipo: gradient_boosting
+    parametros:
+      n_estimators: 200
+      learning_rate: 0.05
+      max_depth: 3
+      random_state: 42
+
+mlflow:
+  experimento: churn-mlops-grupo
+  modelo_registrado: churn-clasificador
+
+# Reglas para promover un modelo a champion.
+registro:
+  alias: champion
+  auc_minimo: 0.80
+  # El candidato debe superar al champion vigente al menos en esta cantidad.
+  mejora_minima: 0.0
 
 metricas:
+  # Probabilidad a partir de la cual se predice churn (1).
   umbral: 0.5
 
-registro:
-  nombre_modelo: "modelo_clientes_kmeans"
-  umbral_auc: 0.70
-
 inferencia:
-  tamano_lote: 50
+  tamano_lote: 300
+  carpeta_salida: data/predicciones
+  # Copia de cada lote puntuado (con sus etiquetas reales) para los pipelines de drift.
+  carpeta_lotes: data/lotes
+
+# Drift emulado en la inferencia (ver domain/drift.py).
+# El nivel se fija aquí, no al ejecutar. Valores usados en la entrega: 0.0, 0.3 y 0.6.
+drift:
+  nivel: 0.0
+  # Semilla del muestreo y la emulación: con la misma semilla y nivel, el lote es idéntico.
+  semilla: 42
+  # Variables que se desplazan, en orden: con nivel n se afectan las primeras round(n * 8).
+  candidatas:
+    - Age
+    - Balance
+    - Geography
+    - CreditScore
+    - EstimatedSalary
+    - Card Type
+    - Point Earned
+    - Tenure
+  # Desplazamiento de las numéricas con nivel 1.0, en desviaciones estándar.
+  desplazamiento_max_std: 1.5
+  # Categoría hacia la que se mueve una fracción `nivel` de las filas.
+  categoria_destino:
+    Geography: Germany
+    Card Type: DIAMOND
+  # Subida de la tasa de churn con nivel 1.0 (con 0.6 sube 0.6 * 0.3 = 0.18).
+  subida_tasa_max: 0.3
+
+monitoreo:
+  carpeta_reportes: reports/drift
+  # Alerta si la fracción de variables con drift supera este valor.
+  umbral_fraccion_drift: 0.3
+  # p-valor por debajo del cual la tasa del target se considera desplazada.
+  alfa_evento: 0.05
