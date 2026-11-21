@@ -1,0 +1,23 @@
+# Ejecuta todos los tests en cada Pull Request y en cada push a main.
+# No necesita MLflow ni Prefect: la API se prueba con un modelo falso.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar Poetry
+        run: pip install poetry
+      - name: Instalar dependencias desde poetry.lock
+        run: poetry install --no-interaction
+      - name: Tests (datos, modelo, inferencia, API y drift)
+        run: poetry run pytest -v

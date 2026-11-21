@@ -13,7 +13,9 @@ dependencies = [
     "scikit-learn (==1.9.1)",
     "pandas (==3.0.6)",
     "numpy (==2.5.4)",
-    "pyyaml (==6.0.3)"
+    "pyyaml (==6.0.3)",
+    "evidently (==0.7.23)",
+    "scipy (==1.18.1)"
 ]
 
 
@@ -23,7 +25,8 @@ build-backend = "poetry.core.masonry.api"
 
 [dependency-groups]
 dev = [
-    "pytest (==9.1.1)"
+    "pytest (==9.1.1)",
+    "httpx (==0.28.1)"
 ]
 [tool.poetry]
 package-mode = false

@@ -1,86 +1,97 @@
+"""Lógica del modelo de churn: selección de variables, pipeline y métricas.
+
+No depende de Prefect ni de MLflow, así que se puede probar y reutilizar
+por separado (flows, API, tests).
+"""
 import pandas as pd
-import numpy as np
-from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.impute import SimpleImputer
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score, accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+MODELOS = {
+    "logistic_regression": LogisticRegression,
+    "random_forest": RandomForestClassifier,
+    "gradient_boosting": GradientBoostingClassifier,
+}
 
 
-def seleccionar_features(df: pd.DataFrame, tipo_features: str = "ALL", custom_cols: list = None) -> pd.DataFrame:
-    """Selecciona las columnas del DataFrame según la configuración de features."""
-    # Excluir columnas que no son features o ID/Target
-    cols_a_excluir = ["RowNumber", "CustomerId", "Surname", "Exited"]
-    df_feat = df.drop(columns=[c for c in cols_a_excluir if c in df.columns], errors="ignore")
-    
-    if tipo_features == "ALL":
-        return df_feat
-    elif tipo_features == "NUMERIC":
-        return df_feat.select_dtypes(include=[np.number])
-    elif tipo_features == "CUSTOM" and custom_cols:
-        cols_existentes = [c for c in custom_cols if c in df_feat.columns]
-        return df_feat[cols_existentes]
-    
-    return df_feat
+def dividir(df: pd.DataFrame, objetivo: str, test_size: float, random_state: int):
+    """División estratificada y reproducible en entrenamiento y prueba.
+
+    La comparten el entrenamiento, la inferencia (que puntúa lotes de la parte
+    de prueba) y el monitoreo (que usa la de entrenamiento como referencia).
+    """
+    return train_test_split(df, test_size=test_size, random_state=random_state, stratify=df[objetivo])
 
 
-def construir_pipeline(tipo_modelo: str, parametros: dict, X_train: pd.DataFrame) -> Pipeline:
-    """Construye un pipeline de Scikit-Learn con preprocesamiento automático y modelo."""
-    # Identificar columnas numéricas y categóricas
-    numeric_features = X_train.select_dtypes(include=[np.number]).columns.tolist()
-    categorical_features = X_train.select_dtypes(include=["object", "category"]).columns.tolist()
-    
-    # Preprocesador numérico
-    numeric_transformer = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler())
-    ])
-    
-    # Preprocesador categórico
-    categorical_transformer = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="constant", fill_value="missing")),
-        ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
-    ])
-    
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ("num", numeric_transformer, numeric_features),
-            ("cat", categorical_transformer, categorical_features)
-        ]
+def predecir(modelo, lote: pd.DataFrame, umbral: float) -> pd.DataFrame:
+    """Añade al lote la probabilidad de churn y la predicción 0/1."""
+    resultado = lote.copy()
+    resultado["probabilidad_churn"] = modelo.predict_proba(lote)[:, 1]
+    resultado["prediccion"] = (resultado["probabilidad_churn"] >= umbral).astype(int)
+    return resultado
+
+
+def seleccionar_variables(df: pd.DataFrame, cfg_features: dict, objetivo: str) -> list[str]:
+    """Devuelve las columnas que usará el modelo según el alias de `features.yaml`."""
+    excluir = set(cfg_features.get("excluir", [])) | {objetivo}
+    disponibles = [c for c in df.columns if c not in excluir]
+    seleccion = cfg_features["seleccion"].upper()
+
+    if seleccion == "ALL":
+        return disponibles
+    if seleccion == "NUMERIC":
+        return [c for c in disponibles if pd.api.types.is_numeric_dtype(df[c])]
+    if seleccion == "CUSTOM":
+        columnas = cfg_features.get("custom") or []
+        desconocidas = [c for c in columnas if c not in df.columns]
+        if desconocidas:
+            raise ValueError(f"Columnas de 'custom' que no existen en el CSV: {desconocidas}")
+        prohibidas = [c for c in columnas if c in excluir]
+        if prohibidas:
+            raise ValueError(f"Columnas de 'custom' que están en 'excluir': {prohibidas}")
+        return list(columnas)
+    raise ValueError(f"Selección desconocida: {seleccion!r}. Usa ALL, NUMERIC o CUSTOM")
+
+
+def construir_pipeline(df: pd.DataFrame, columnas: list[str], tipo: str, parametros: dict) -> Pipeline:
+    """Preprocesado (escalado + one-hot) y clasificador en un solo objeto.
+
+    El ColumnTransformer descarta cualquier columna que no esté en `columnas`,
+    así que el modelo entrenado acepta la fila completa de un cliente.
+    """
+    if tipo not in MODELOS:
+        raise ValueError(f"Tipo de modelo desconocido: {tipo!r}. Opciones: {list(MODELOS)}")
+
+    numericas = [c for c in columnas if pd.api.types.is_numeric_dtype(df[c])]
+    categoricas = [c for c in columnas if c not in numericas]
+
+    preprocesado = ColumnTransformer(
+        [
+            ("num", StandardScaler(), numericas),
+            ("cat", OneHotEncoder(handle_unknown="ignore"), categoricas),
+        ],
+        remainder="drop",
     )
-    
-    # Seleccionar clasificador
-    if tipo_modelo == "RandomForestClassifier":
-        clf = RandomForestClassifier(**parametros)
-    elif tipo_modelo == "GradientBoostingClassifier":
-        clf = GradientBoostingClassifier(**parametros)
-    elif tipo_modelo == "LogisticRegression":
-        clf = LogisticRegression(**parametros)
-    else:
-        clf = RandomForestClassifier(random_state=42)
-        
-    # Unir preprocesamiento y modelo en un Pipeline
-    pipeline = Pipeline(steps=[
-        ("preprocessor", preprocessor),
-        ("classifier", clf)
-    ])
-    
-    return pipeline
+    return Pipeline([("preprocesado", preprocesado), ("clasificador", MODELOS[tipo](**parametros))])
 
 
-def evaluar_modelo(pipeline, X_test, y_test, umbral: float = 0.5) -> dict:
-    """Evalúa el pipeline y retorna un diccionario con las métricas principales."""
-    y_prob = pipeline.predict_proba(X_test)[:, 1]
-    y_pred = (y_prob >= umbral).astype(int)
-    
-    metrics = {
-        "auc": float(roc_auc_score(y_test, y_prob)),
-        "f1": float(f1_score(y_test, y_pred, zero_division=0)),
-        "precision": float(precision_score(y_test, y_pred, zero_division=0)),
-        "recall": float(recall_score(y_test, y_pred, zero_division=0)),
-        "accuracy": float(accuracy_score(y_test, y_pred))
+def calcular_metricas(y_real, probabilidades, umbral: float) -> dict[str, float]:
+    predicciones = (probabilidades >= umbral).astype(int)
+    return {
+        "auc": roc_auc_score(y_real, probabilidades),
+        "accuracy": accuracy_score(y_real, predicciones),
+        "precision": precision_score(y_real, predicciones, zero_division=0),
+        "recall": recall_score(y_real, predicciones, zero_division=0),
+        "f1": f1_score(y_real, predicciones, zero_division=0),
     }
-    
-    return metrics

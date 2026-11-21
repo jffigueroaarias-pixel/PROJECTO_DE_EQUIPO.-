@@ -1,0 +1,25 @@
+# Selección de variables del experimento.
+# Cambia `seleccion` para probar otro conjunto sin tocar el código:
+#   ALL     -> todas las variables (numéricas y categóricas)
+#   NUMERIC -> solo las numéricas
+#   CUSTOM  -> solo las listadas en `custom` (nombres exactos del CSV)
+seleccion: ALL
+
+custom:
+  - Age
+  - Balance
+  - NumOfProducts
+  - IsActiveMember
+  - Geography
+  - Gender
+
+# Columnas que nunca entran al modelo, sea cual sea la selección.
+#   RowNumber, CustomerId, Surname: identificadores, no aportan información.
+#   Complain: fuga de datos. Coincide con Exited en 9.966 de 10.000 filas
+#   (ver EDA de la actividad 1); con ella el AUC sube a ~0.999 y el modelo
+#   no serviría con clientes nuevos, de los que aún no sabemos si se quejaron.
+excluir:
+  - RowNumber
+  - CustomerId
+  - Surname
+  - Complain
