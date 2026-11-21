@@ -35,7 +35,6 @@ Proyecto del curso de MLOps.
 | Umbral configurable y alerta | sección `monitoreo` de [`configs/config.yaml`](configs/config.yaml) |
 | Tests de datos, modelo, inferencia, API y drift (64) | [`tests/`](tests/) |
 | Integración continua (tests en cada Pull Request) | [`.github/workflows/tests.yml`](.github/workflows/tests.yml), pestaña [Actions](https://github.com/jffigueroaarias-pixel/PROJECTO_DE_EQUIPO.-/actions) |
-| Reportes de drift de ejemplo y Memoria 3 | [`docs/evidencias/`](docs/evidencias/) |
 
 
 
